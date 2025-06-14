@@ -10,6 +10,13 @@
             <h1 class="text-4xl font-bold text-gray-800">Amarok-BK</h1>
         </div>
 
+        <!-- Message si aucun shift -->
+        {% if not shifts %}
+            <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg text-center">
+                Aucun shift disponible. Veuillez initialiser les données via <a href="/add_shift_data" class="underline">/add_shift_data</a>.
+            </div>
+        {% endif %}
+
         <!-- Grille des shifts -->
         <div class="grid md:grid-cols-3 gap-8">
             {% for shift in shifts %}
@@ -19,7 +26,7 @@
                     text-sm
                 ">
                     <h2 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
-                        🕐 Shift {{ loop.index }} — {{ shift['heureDebut'] }} – {{ shift['heureFin'] }}
+                        🕐 Shift {{ shift['id'] }} — {{ shift['heureDebut'] }} – {{ shift['heureFin'] }}
                         <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-100 text-green-700' if shift['enTravail'] else 'bg-red-100 text-red-700' }}">
                             {{ 'En cours' if shift['enTravail'] else 'Terminé' }}
                         </span>
@@ -28,27 +35,29 @@
                     <!-- Données shift alignées -->
                     <div class="space-y-2 leading-relaxed text-sm">
                         <div class="flex justify-between">
-                            <span>⚙️ <strong>Nb Câbles/Heure :</strong></span>
-                            <span>{{ shift['nombreCablesHeure'] }}</span>
+                            <span>⚙️ <strong>prediction de câbles/heure :</strong></span>
+                            <span>{{ shift['nombreCablesHeure'] or 'N/A' }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>📈 <strong>% Câbles/Heure :</strong></span>
-                            <span>{{ shift['pourcentageCablesHeure'] }}%</span>
+                            <span>🔌 <strong>prediction de Câbles/Shift :</strong></span>
+                            <span>{{ shift['nombreCablesShift'] or 'N/A' }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>🔌 <strong>Nb Câbles/Shift :</strong></span>
-                            <span>{{ shift['nombreCablesShift'] }}</span>
+                            <span>📈 <strong>nombre de cable finis</strong></span>
+                            <span>{{ shift['nombreCablesFinis'] or 'N/A' }}</span>
                         </div>
-                        <div class="flex justify-between">
-                            <span>📊 <strong>% Câbles/Shift :</strong></span>
-                            <span>{{ shift['pourcentageCablesShift'] }}%</span>
-                        </div>
+                        
+                       
                     </div>
 
-                    <!-- 🎨 Graphique de production -->
+                    <!-- Graphique de production -->
                     <div class="mt-4">
                         <h3 class="text-base font-semibold text-gray-700 mb-2">Production horaire</h3>
-                        <canvas id="productionChart{{ shift['id'] }}" width="300" height="150"></canvas>
+                        {% if shift['heures_production'] %}
+                            <canvas id="productionChart{{ shift['id'] }}" width="300" height="150"></canvas>
+                        {% else %}
+                            <p class="text-gray-600 text-xs text-center">Aucune donnée de production disponible</p>
+                        {% endif %}
                     </div>
 
                     <!-- Affichage des postes avec flèche -->
@@ -74,11 +83,11 @@
                                     {% if poste['arrets'] %}
                                         <ul class="list-disc pl-5 space-y-1 text-gray-700 text-xs">
                                             {% for arret in poste['arrets'] %}
-                                                <li>⏱ <strong>Début:</strong> {{ arret['debut'] }} — <strong>Durée:</strong> {{ arret['duree'] }}</li>
+                                                <li>⏱ <strong>Début:</strong> {{ arret['debut'] }} — <strong>Durée:</strong> {{ arret['duree'] }} secondes</li>
                                             {% endfor %}
                                         </ul>
                                     {% else %}
-                                        <p class="text-gray-600 text-xs">Aucun arrêt</p>
+                                        <p class="text-gray-600 text-xs">Aucun arrêt enregistré</p>
                                     {% endif %}
                                 </div>
                             </div>
@@ -96,6 +105,7 @@
 <script>
     // Créer les graphiques pour chaque shift
     {% for shift in shifts %}
+    {% if shift['heures_production'] %}
     var ctx{{ shift['id'] }} = document.getElementById('productionChart{{ shift['id'] }}').getContext('2d');
     var productionChart{{ shift['id'] }} = new Chart(ctx{{ shift['id'] }}, {
         type: 'bar',
@@ -104,7 +114,7 @@
             datasets: [{
                 label: 'Nb Câbles produits par heure',
                 data: {{ shift['cables_par_heure']|tojson }},
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                backgroundColor: 'rgba(54, 162, 235, 0.5)', // Bleu assorti au thème
                 borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
             }]
@@ -112,11 +122,31 @@
         options: {
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Nombre de câbles'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Heure'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Production horaire - Shift {{ shift['id'] }}'
+                },
+                legend: {
+                    display: false
                 }
             }
         }
     });
+    {% endif %}
     {% endfor %}
 
     // Toggle des arrêts avec rotation de flèche

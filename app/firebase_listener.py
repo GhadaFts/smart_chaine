@@ -2,7 +2,7 @@ import requests
 import time
 
 # Mets ton propre lien Firebase ici (remplace bien par ton vrai lien)
-FIREBASE_URL = 'https://yazaki-9bb44-default-rtdb.europe-west1.firebasedatabase.app/data.json'
+FIREBASE_URL = 'https://sinda-34c14-default-rtdb.firebaseio.com/production.json'
 
 def listen_to_firebase():
     last_data = None
