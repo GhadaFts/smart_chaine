@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 import re
 import requests
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
 # Configurer le logging
@@ -82,13 +82,11 @@ def index():
             s.cable_count = 0
             s.cb_per_hour = 0
             s.cb_per_shift = 0
-            s.nomChef = "Inactif"  # Valeur par défaut pour nomChef (non null)
-            # Supprimer les arrêts associés
+            s.nomChef = "Inactif"
             for poste in s.postes:
-                for arret in poste.arrets[:]:  # Copie pour éviter des problèmes lors de la suppression
+                for arret in poste.arrets[:]:
                     db.session.delete(arret)
-            # Supprimer les enregistrements production_horaire associés
-            for production in s.productions_horaires[:]:  # Copie pour éviter des problèmes lors de la suppression
+            for production in s.productions_horaires[:]:
                 db.session.delete(production)
             logger.info(f"Shift {s.id} non en travail : attributs réinitialisés, arrêts et productions supprimés")
         
@@ -110,17 +108,14 @@ def index():
                     'numPoste': p.numPoste,
                     'nomPoste': p.nomPorteurPoste,
                     'arrets': [
-                        {
-                            'debut': a.debut.strftime('%H:%M'),
-                            'duree': a.duree
-                        } for a in p.arrets
+                        {'debut': a.debut.strftime('%H:%M'), 'duree': a.duree} for a in p.arrets
                     ]
                 }
                 for p in s.postes
             ]
         })
     
-    db.session.commit()  # Valider les modifications dans la base de données
+    db.session.commit()
     return render_template('suivi.html', shifts=shifts)
 
 @app.route('/add_shift_data')
@@ -158,6 +153,32 @@ def add_shift_data():
 
     db.session.commit()
     return "Shifts et postes créés!"
+
+@app.route('/reset_shift', methods=['POST'])
+def reset_shift():
+    with app.app_context():
+        current_shift = find_current_shift()
+        if not current_shift:
+            logger.warning("Aucun shift en cours pour réinitialisation")
+            return jsonify({"status": "error", "message": "Aucun shift en cours"}), 400
+        
+        # Réinitialiser les attributs
+        current_shift.cable_count = 0
+        current_shift.cb_per_hour = 0
+        current_shift.cb_per_shift = 0
+        
+        # Supprimer les arrêts
+        for poste in current_shift.postes:
+            for arret in poste.arrets[:]:
+                db.session.delete(arret)
+        
+        # Supprimer les productions
+        for production in current_shift.productions_horaires[:]:
+            db.session.delete(production)
+        
+        db.session.commit()
+        logger.info(f"Shift {current_shift.id} réinitialisé : attributs à 0, arrêts et productions supprimés")
+        return jsonify({"status": "success", "message": f"Shift {current_shift.id} réinitialisé avec succès"})
 
 def find_current_shift():
     now = datetime.now().time()

@@ -5,95 +5,101 @@
 {% block content %}
 <section class="bg-gray-100 font-sans my-12">
     <div class="container mx-auto p-6">
-        <!-- Titre du projet -->
-        <div class="bg-blue-200 text-center p-6 rounded-lg shadow-lg mb-12">
+        <!-- Titre du projet avec bouton à droite -->
+        <div class="bg-blue-200 text-center p-6 rounded-lg shadow-lg mb-12 flex justify-between items-center">
             <h1 class="text-4xl font-bold text-gray-800">Amarok-BK</h1>
+            {% if shifts and shifts|length > 0 and shifts|selectattr('enTravail')|list|length > 0 %}
+            <button id="resetShiftButton" class="custom-reset-button">
+                Réinitialiser Shift en cours
+            </button>
+            {% endif %}
         </div>
 
         <!-- Message si aucun shift -->
         {% if not shifts %}
-            <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg text-center">
-                Aucun shift disponible. Veuillez initialiser les données via <a href="/add_shift_data" class="underline">/add_shift_data</a>.
-            </div>
+        <div class="bg-yellow-100 text-yellow-800 p-4 rounded-lg text-center">
+            Aucun shift disponible. Veuillez initialiser les données via <a href="/add_shift_data" class="underline">/add_shift_data</a>.
+        </div>
         {% endif %}
 
         <!-- Grille des shifts -->
         <div class="grid md:grid-cols-3 gap-8">
             {% for shift in shifts %}
-                <div class="
+            <div class="
                     p-4 rounded-lg transition-shadow duration-300
                     {{ 'bg-white shadow-2xl' if shift['enTravail'] else 'bg-white opacity-50 pointer-events-none' }}
                     text-sm
                 ">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
-                        🕐 Shift {{ shift['id'] }} — {{ shift['heureDebut'] }} – {{ shift['heureFin'] }}
-                        <span class="text-xs px-2 py-1 rounded-full {{ 'bg-green-100 text-green-700' if shift['enTravail'] else 'bg-red-100 text-red-700' }}">
-                            {{ 'En cours' if shift['enTravail'] else 'Terminé' }}
-                        </span>
-                    </h2>
-
-                    <!-- Données shift alignées -->
-                    <div class="space-y-2 leading-relaxed text-sm">
-                        <div class="flex justify-between">
-                            <span>⚙️ <strong>prediction de câbles/heure :</strong></span>
-                            <span>{{ shift['nombreCablesHeure'] or 'N/A' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>🔌 <strong>prediction de Câbles/Shift :</strong></span>
-                            <span>{{ shift['nombreCablesShift'] or 'N/A' }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>📈 <strong>nombre de cable finis</strong></span>
-                            <span>{{ shift['nombreCablesFinis'] or 'N/A' }}</span>
-                        </div>
-                        
-                       
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex justify-between items-center">
+                    🕐 Shift {{ shift['id'] }} — {{ shift['heureDebut'] }} – {{ shift['heureFin'] }}
+                    <span
+                        class="text-xs px-2 py-1 rounded-full {{ 'bg-green-100 text-green-700' if shift['enTravail'] else 'bg-red-100 text-red-700' }}">
+                        {{ 'En cours' if shift['enTravail'] else 'Terminé' }}
+                    </span>
+                </h2>
+                
+                <!-- Données shift alignées -->
+                <div class="space-y-2 leading-relaxed text-sm">
+                    <div class="flex justify-between">
+                        <span>⚙️ <strong>prediction de câbles/heure :</strong></span>
+                        <span>{{ shift['nombreCablesHeure'] or 'N/A' }}</span>
                     </div>
-
-                    <!-- Graphique de production -->
-                    <div class="mt-4">
-                        <h3 class="text-base font-semibold text-gray-700 mb-2">Production horaire</h3>
-                        {% if shift['heures_production'] %}
-                            <canvas id="productionChart{{ shift['id'] }}" width="300" height="150"></canvas>
-                        {% else %}
-                            <p class="text-gray-600 text-xs text-center">Aucune donnée de production disponible</p>
-                        {% endif %}
+                    <div class="flex justify-between">
+                        <span>🔌 <strong>prediction de Câbles/Shift :</strong></span>
+                        <span>{{ shift['nombreCablesShift'] or 'N/A' }}</span>
                     </div>
-
-                    <!-- Affichage des postes avec flèche -->
-                    <div class="mt-6 space-y-3 text-sm">
-                        {% for poste in shift['postes'] %}
-                            <div class="bg-gray-50 p-3 rounded-lg">
-                                <button class="w-full flex items-center justify-between font-semibold text-gray-800 text-sm toggle-arrets">
-                                    <div class="flex items-center gap-2 flex-1">
-                                        <span>🧑‍🏭</span>
-                                        <span>Poste {{ poste['numPoste'] }} — {{ poste['nomPoste'] }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="whitespace-nowrap">{{ poste['arrets']|length }} arrêt(s)</span>
-                                        <svg class="w-5 h-5 transform transition-transform duration-300" fill="none"
-                                             stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                  d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </div>
-                                </button>
-
-                                <div class="arrets hidden mt-3">
-                                    {% if poste['arrets'] %}
-                                        <ul class="list-disc pl-5 space-y-1 text-gray-700 text-xs">
-                                            {% for arret in poste['arrets'] %}
-                                                <li>⏱ <strong>Début:</strong> {{ arret['debut'] }} — <strong>Durée:</strong> {{ arret['duree'] }} secondes</li>
-                                            {% endfor %}
-                                        </ul>
-                                    {% else %}
-                                        <p class="text-gray-600 text-xs">Aucun arrêt enregistré</p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        {% endfor %}
+                    <div class="flex justify-between">
+                        <span>📈 <strong>nombre de cable finis</strong></span>
+                        <span>{{ shift['nombreCablesFinis'] or 'N/A' }}</span>
                     </div>
                 </div>
+
+                <!-- Graphique de production -->
+                <div class="mt-4">
+                    <h3 class="text-base font-semibold text-gray-700 mb-2">Production horaire</h3>
+                    {% if shift['heures_production'] %}
+                    <canvas id="productionChart{{ shift['id'] }}" width="300" height="150"></canvas>
+                    {% else %}
+                    <p class="text-gray-600 text-xs text-center">Aucune donnée de production disponible</p>
+                    {% endif %}
+                </div>
+
+                <!-- Affichage des postes avec flèche -->
+                <div class="mt-6 space-y-3 text-sm">
+                    {% for poste in shift['postes'] %}
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <button
+                            class="w-full flex items-center justify-between font-semibold text-gray-800 text-sm toggle-arrets">
+                            <div class="flex items-center gap-2 flex-1">
+                                <span>🧑‍🏭</span>
+                                <span>Poste {{ poste['numPoste'] }} — {{ poste['nomPoste'] }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="whitespace-nowrap">{{ poste['arrets']|length }} arrêt(s)</span>
+                                <svg class="w-5 h-5 transform transition-transform duration-300" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </button>
+
+                        <div class="arrets hidden mt-3">
+                            {% if poste['arrets'] %}
+                            <ul class="list-disc pl-5 space-y-1 text-gray-700 text-xs">
+                                {% for arret in poste['arrets'] %}
+                                <li>⏱ <strong>Début:</strong> {{ arret['debut'] }} — <strong>Durée:</strong> {{
+                                    arret['duree'] }} secondes</li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-gray-600 text-xs">Aucun arrêt enregistré</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
             {% endfor %}
         </div>
     </div>
@@ -114,7 +120,7 @@
             datasets: [{
                 label: 'Nb Câbles produits par heure',
                 data: {{ shift['cables_par_heure']|tojson }},
-                backgroundColor: 'rgba(54, 162, 235, 0.5)', // Bleu assorti au thème
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
                 borderColor: 'rgba(54, 162, 235, 1)',
                 borderWidth: 1
             }]
@@ -158,5 +164,53 @@
             icon.classList.toggle('rotate-180');
         });
     });
+
+    // Gestion du bouton de réinitialisation
+    document.getElementById('resetShiftButton')?.addEventListener('click', () => {
+        if (confirm('Êtes-vous sûr de vouloir réinitialiser le Shift en cours ? Cette action est irréversible.')) {
+            fetch('/reset_shift', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(data.message);
+                        location.reload(); // Recharger la page pour refléter les changements
+                    } else {
+                        alert('Erreur : ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la réinitialisation :', error);
+                    alert('Une erreur est survenue lors de la réinitialisation.');
+                });
+        }
+    });
 </script>
+
+<!-- Styles CSS personnalisés -->
+<style>
+    .custom-reset-button {
+        background-color: #1eaf83; /* Bleu marine clair (équivalent Tailwind bg-blue-900) */
+        color: white;
+        font-weight: bold;
+        padding: 0.5rem 1rem; /* py-2 px-4 en rem */
+        border-radius: 0.375rem; /* rounded */
+        margin-left: 1rem; /* ml-4 */
+        transition: background-color 0.3s ease; /* Transition pour l'effet hover */
+    }
+
+    .custom-reset-button:hover {
+        background-color: #1e3a8a; /* Bleu marine plus clair au survol (équivalent Tailwind hover:bg-blue-700) */
+    }
+
+    /* Assurez-vous que le bouton est visible au-dessus d'autres éléments */
+    .custom-reset-button {
+        position: relative;
+        z-index: 10;
+    }
+</style>
 {% endblock %}
